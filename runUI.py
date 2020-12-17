@@ -191,7 +191,6 @@ class MyWindows(QWidget, UI.Ui_Form):
 
 if __name__ == "__main__":
 	gl._init()
-
 	app = QApplication(sys.argv)
 	gps_thread = threading.Thread(target=thread.thread_gps_func, daemon=True)
 	_4g_thread = threading.Thread(target=thread.thread_4g_func, daemon=True)
