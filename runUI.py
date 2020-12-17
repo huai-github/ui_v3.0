@@ -10,16 +10,39 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5 import QtCore
 from time import sleep
 from my_thread import MyThread
+from tools import line_parallel
 import thread
-import globalvar as gl    #添加全局变量管理模块
+import globalvar as gl
+
 
 h = 480  # 画布大小
 w = 550
 
+g_startX = 0
+g_startY = 0
+g_startH = 0
+g_startW = 0
+g_endX = 0
+g_endY = 0
+g_endH = 0
+g_endW = 0
 
-class UIFreshThread(object): 	# 界面刷新线程
+
+def get_global_value():
+	global g_startX, g_startY, g_startH, g_startW, g_endX, g_endY, g_endH, g_endW
+	g_startX = gl.get_value('g_startX')
+	g_startY = gl.get_value('g_startY')
+	g_startH = gl.get_value('g_startH')
+	g_startW = gl.get_value('g_startW')
+	g_endX = gl.get_value('g_endX')
+	g_endY = gl.get_value('g_endY')
+	g_endH = gl.get_value('g_endH')
+	g_endW = gl.get_value('g_endW')
+
+
+class UIFreshThread(object):  # 界面刷新线程
 	def __init__(self):
-		self.startX = 0	 # from could
+		self.startX = 0  # from could
 		self.startY = 0
 		self.endX = 0
 		self.endY = 0
@@ -31,18 +54,20 @@ class UIFreshThread(object): 	# 界面刷新线程
 
 	def __call__(self):  # 调用实例本身 ——>> MyThread(self.__thread,....
 		# gps_threadLock.acquire()
-		self.startX = thread.g_line_x1 - 4076000	 # from could
-		print("thread.g_line_x1", thread.g_line_x1)
-		self.startY = thread.g_line_y1 - 515000
-		self.endX = thread.g_line_x2 - 4076000
-		self.endY = thread.g_line_x2 - 515000
-		self.Interval = 120
+		if g_startX != 0:
+			self.startX = g_startX # from could
+			self.startY = g_startY
+			self.endX = g_endX
+			self.endY = g_endY
+			self.Interval = g_startW
 
-		self.nowX = thread.g_x - 4076000	# from gps
+		self.nowX = thread.g_x - 4076000  # from gps
 		self.nowY = thread.g_y - 515000
-		self.deep = thread.g_h 	# - 基准高 baseHeight from could
+		self.deep = thread.g_h  # - 基准高 baseHeight from could
+
 		sleep(1)
-		# gps_threadLock.release()
+
+	# gps_threadLock.release()
 
 	def get_msg_xy(self):
 		return self.startX, self.startY, self.endX, self.endY, self.Interval, self.nowX, self.nowY
@@ -77,21 +102,17 @@ class MyWindows(QWidget, UI.Ui_Form):
 		self.DeepList = []
 		self.NumList = []
 
-		# gps_thread = threading.Thread(target=thread.gps_thread_fun)
-		# _4g_thread = threading.Thread(target=thread._4g_thread_func)
-		#
-		# # gps_thread.start()  # 启动线程
-		# sleep(0.5)
-		# _4g_thread.start()
-
 	def set_slot(self):
 		self.__timer.timeout.connect(self.update)
 
 	def leftWindow(self, img, startX, startY, endX, endY, Interval, nowX, nowY):
 		img[...] = 255
-		cv2.line(img, (int(startX), int(startY)), (int(endX), int(endY)), (0, 255, 0), 1)
-		cv2.line(img, (int(startX + Interval), int(startY)), (int(endX + Interval), int(endY)), (0, 0, 255), 3)
-		cv2.line(img, (int(endX - Interval), int(startY)), (int(endX - Interval), int(endY)), (0, 0, 255), 3)
+		startPoint = (int(startX), int(startY))
+		endPoint = (int(endX), int(endY))
+		width = Interval * 5
+		line_parallel(img, startPoint, endPoint, width, left=-1)
+		line_parallel(img, startPoint, endPoint, width, right=-1)
+
 		cv2.circle(img, (int(nowX), int(nowY)), 6, (255, 0, 0), -1)
 		BorderReminderLedXY = (530, 460)  # 边界指示灯位置 界内绿色
 		BorderReminderTextXY = (230, 470)
@@ -115,7 +136,7 @@ class MyWindows(QWidget, UI.Ui_Form):
 	def rightWindow(self, img, deep):
 		img[::] = 255  # 设置画布颜色
 
-		if len(self.NumList) >= 5:		# 最多显示5条柱状图
+		if len(self.NumList) >= 5:  # 最多显示5条柱状图
 			self.DeepList.pop(0)
 			self.NumList.pop(0)
 
@@ -170,14 +191,15 @@ class MyWindows(QWidget, UI.Ui_Form):
 
 if __name__ == "__main__":
 	gl._init()
+
 	app = QApplication(sys.argv)
-	gps_thread = threading.Thread(target=thread.gps_thread_fun, daemon=True)
-	_4g_thread = threading.Thread(target=thread._4g_thread_func, daemon=True)
+	gps_thread = threading.Thread(target=thread.thread_gps_func, daemon=True)
+	_4g_thread = threading.Thread(target=thread.thread_4g_func, daemon=True)
 
 	gps_thread.start()  # 启动线程
-
 	mainWindow = MyWindows()
 	_4g_thread.start()
-
+	sleep(0.5)
+	get_global_value()
 	mainWindow.show()
 	sys.exit(app.exec_())

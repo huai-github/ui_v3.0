@@ -1,11 +1,15 @@
-from time import sleep
-
 from bsp_serialport import *
 from bsp_4g import *
 from bsp_gps import *
 from datetime import datetime
 from threading import Timer
 import threading
+import globalvar as gl
+
+g_gps_threadLock = threading.Lock()
+g_4g_threadLock = threading.Lock()
+g_laser_threadLock = threading.Lock()
+g_gyro_threadLock = threading.Lock()
 
 # 消息类型。1：心跳，2：上报
 TYPE_HEART = 1
@@ -16,6 +20,11 @@ diggerId = 111
 g_x = 0
 g_y = 0
 g_h = 0
+
+g_distance = 0
+g_roll = 0
+g_pitch = 0
+g_yaw = 0
 
 
 class TimeInterval(object):
@@ -53,7 +62,7 @@ def thread_gps_func():
 		gps_com = SerialPortCommunication(GPS_COM, 115200, 0.2)  # 5Hz
 		gps_com.rec_data(gps_rec_buffer, GPS_REC_BUF_LEN)  # int
 		gps_com.close_com()
-		# g_gps_threadLock.acquire()  # 加锁
+		g_gps_threadLock.acquire()  # 加锁
 		gps_data.gps_msg_analysis(gps_rec_buffer)
 		# 8 -> 1，得到经纬度
 		gps_msg_switch.latitude, gps_msg_switch.longitude, gps_msg_switch.altitude = gps_data.gps_typeswitch()
@@ -62,12 +71,8 @@ def thread_gps_func():
 		global g_x, g_y, g_h
 		g_x, g_y = LatLon2XY(gps_msg_switch.latitude, gps_msg_switch.longitude)
 		g_h = gps_msg_switch.altitude
-		# 判断是否挖完一次
-		h_last = g_h
-		if g_h > h_last: 	# 当前的海拔大于上一次的海拔，说明斗开始上升了
-			global g_worked_flag
-			g_worked_flag = True
-		# g_gps_threadLock.release()  # 解锁
+
+		g_gps_threadLock.release()  # 解锁
 		# print("x：%s\t y：%s\t deep：%s" % (g_x, g_y, g_h))  # 高斯坐标
 
 
@@ -94,6 +99,17 @@ def thread_4g_func():
 			rec.save_msg(rec_buf_dict)
 			# print(rec.rec_task_dict["diggerId"])
 			# print(rec.rec_task_dict["section"][0]["sortNo"])
+			g_4g_threadLock.acquire()  # 加锁
+			gl.set_value('g_startX', rec.rec_task_dict["section"][0]["startX"])
+			gl.set_value('g_startY', rec.rec_task_dict["section"][0]["startY"])
+			gl.set_value('g_startH', rec.rec_task_dict["section"][0]["startH"])
+			gl.set_value('g_startW', rec.rec_task_dict["section"][0]["startW"])
+			gl.set_value('g_endX', rec.rec_task_dict["section"][0]["endX"])
+			gl.set_value('g_endY', rec.rec_task_dict["section"][0]["endY"])
+			gl.set_value('g_endH', rec.rec_task_dict["section"][0]["endH"])
+			gl.set_value('g_endW', rec.rec_task_dict["section"][0]["endW"])
+			g_4g_threadLock.release()  # 解锁
+
 
 		# 发送
 		send = SendMessage(TYPE_HEART, diggerId, round(g_x, 2), round(g_y, 2), round(g_h, 2))
@@ -101,11 +117,5 @@ def thread_4g_func():
 		com_4g.send_data(send_msg_json.encode('utf-8'))
 
 
-if __name__ == "__main__":
-	gps_thread = threading.Thread(target=thread_gps_func)
-	_4g_thread = threading.Thread(target=thread_4g_func)
 
-	gps_thread.start()  # 启动线程
-	sleep(0.5)
-	_4g_thread.start()
 
