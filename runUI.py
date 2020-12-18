@@ -10,10 +10,9 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5 import QtCore
 from time import sleep
 from my_thread import MyThread
-from tools import line_parallel
+from tools import work_area
 import thread
 import globalvar as gl
-
 
 h = 480  # 画布大小
 w = 550
@@ -46,7 +45,7 @@ class UIFreshThread(object):  # 界面刷新线程
 		self.startY = 0
 		self.endX = 0
 		self.endY = 0
-		self.Interval = 120
+		self.Interval = 0
 
 		self.nowX = 0  # from gps
 		self.nowY = 0
@@ -55,7 +54,7 @@ class UIFreshThread(object):  # 界面刷新线程
 	def __call__(self):  # 调用实例本身 ——>> MyThread(self.__thread,....
 		# gps_threadLock.acquire()
 		if g_startX != 0:
-			self.startX = g_startX # from could
+			self.startX = g_startX  # from could
 			self.startY = g_startY
 			self.endX = g_endX
 			self.endY = g_endY
@@ -98,7 +97,7 @@ class MyWindows(QWidget, UI.Ui_Form):
 		self.set_slot()
 		self.__thread = UIFreshThread()  # 开启线程(同时将这个线程类作为一个属性)
 		MyThread(self.__thread, (), name='UIFreshThread', daemon=True).start()
-		self.__timer.start(25)  # ms
+		self.__timer.start(1000)  # ms
 		self.DeepList = []
 		self.NumList = []
 
@@ -110,18 +109,23 @@ class MyWindows(QWidget, UI.Ui_Form):
 		startPoint = (int(startX), int(startY))
 		endPoint = (int(endX), int(endY))
 		width = Interval * 5
-		line_parallel(img, startPoint, endPoint, width, left=-1)
-		line_parallel(img, startPoint, endPoint, width, right=-1)
+		currentPoint = (int(nowX), int(nowY))
+		# line_parallel(img, startPoint, endPoint, width, left=-1)
+		# line_parallel(img, startPoint, endPoint, width, right=-1)
+		dist = work_area(img, startPoint, endPoint, width, currentPoint)
 
-		cv2.circle(img, (int(nowX), int(nowY)), 6, (255, 0, 0), -1)
+		cv2.circle(img, currentPoint, 6, (255, 0, 0), -1)
 		BorderReminderLedXY = (530, 460)  # 边界指示灯位置 界内绿色
 		BorderReminderTextXY = (230, 470)
 		cv2.circle(img, BorderReminderLedXY, 12, (0, 255, 0), -1)
 		self.BorderReminder.setText("   ")
 		# 如果超出边界，BorderReminder红色,并提示汉字信息
-		if nowX > (startX + Interval) or nowX < (startX - Interval):
+		if dist == 0:
 			cv2.circle(img, BorderReminderLedXY, 12, (0, 0, 255), -1)  # 边界报警指示灯
 			self.BorderReminder.setText("！！即将超出边界！！")
+		elif dist == -1:
+			cv2.circle(img, BorderReminderLedXY, 12, (0, 0, 255), -1)  # 边界报警指示灯
+			self.BorderReminder.setText("！！超出边界！！")
 
 		cv2.putText(img, "BorderReminder", BorderReminderTextXY, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
 		QtImgLine = QImage(cv2.cvtColor(img, cv2.COLOR_BGR2RGB).data,
@@ -173,13 +177,13 @@ class MyWindows(QWidget, UI.Ui_Form):
 		self.rightLabel.setPixmap(pixmapR)
 
 	def showStartXY(self, startX, startY):
-		self.startXY.setText("(%f, %f)" % (startX, startY))
+		self.startXY.setText("(%.2f, %.2f)" % (startX, startY))
 
 	def showEndXY(self, endX, endY):
-		self.endXY.setText("(%f, %f)" % (endX, endY))
+		self.endXY.setText("(%.2f, %.2f)" % (endX, endY))
 
 	def showNowXY(self, nowX, nowY):
-		self.nowXY.setText("(%f, %f)" % (nowX, nowY))
+		self.nowXY.setText("(%.2f, %.2f)" % (nowX, nowY))
 
 	def update(self):
 		self.rightWindow(self.imgBar, self.__thread.get_msg_deep())
@@ -192,8 +196,12 @@ class MyWindows(QWidget, UI.Ui_Form):
 if __name__ == "__main__":
 	gl._init()
 	app = QApplication(sys.argv)
+
 	gps_thread = threading.Thread(target=thread.thread_gps_func, daemon=True)
 	_4g_thread = threading.Thread(target=thread.thread_4g_func, daemon=True)
+
+	# gps_thread = threading.Thread(target=thread.thread_gps_func)
+	# _4g_thread = threading.Thread(target=thread.thread_4g_func)
 
 	gps_thread.start()  # 启动线程
 	mainWindow = MyWindows()

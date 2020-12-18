@@ -15,7 +15,7 @@ g_gyro_threadLock = threading.Lock()
 TYPE_HEART = 1
 TYPE_SEND = 2
 # 挖掘机ID
-diggerId = 111
+diggerId = 531953905391632384
 # 高斯坐标，全局变量，double类型
 g_x = 0
 g_y = 0
@@ -86,7 +86,8 @@ def thread_4g_func():
 
 	# 间隔一分钟发送一次心跳
 	start = datetime.now().replace(minute=0, second=0, microsecond=0)
-	minute = TimeInterval(start, 6, heart.send_heart_msg, [com_4g])  # 6s
+	# TODO:现在是6s，改成一分钟
+	minute = TimeInterval(start, 6, heart.send_heart_msg, [com_4g])
 	minute.start()
 	minute.cancel()
 
@@ -97,7 +98,7 @@ def thread_4g_func():
 		if rec_buf != b'':
 			rec_buf_dict = task_switch_dict(rec_buf)
 			rec.save_msg(rec_buf_dict)
-			# print(rec.rec_task_dict["diggerId"])
+			print(rec.rec_task_dict["diggerId"])
 			# print(rec.rec_task_dict["section"][0]["sortNo"])
 			g_4g_threadLock.acquire()  # 加锁
 			gl.set_value('g_startX', rec.rec_task_dict["section"][0]["startX"])
@@ -110,11 +111,11 @@ def thread_4g_func():
 			gl.set_value('g_endW', rec.rec_task_dict["section"][0]["endW"])
 			g_4g_threadLock.release()  # 解锁
 
-
 		# 发送
-		send = SendMessage(TYPE_HEART, diggerId, round(g_x, 2), round(g_y, 2), round(g_h, 2))
+		send = SendMessage(TYPE_HEART, diggerId, round(g_x, 2), round(g_y, 2), round(g_h, 2), 0)
 		send_msg_json = send.switch_to_json()
 		com_4g.send_data(send_msg_json.encode('utf-8'))
+		print(1111)
 
 
 
