@@ -1,8 +1,6 @@
 import sys
 import UI
 import cv2
-import threading
-import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import QWidget, QApplication
@@ -10,8 +8,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5 import QtCore
 from time import sleep
 from my_thread import MyThread
-from tools import work_area
-import thread
+from thread import *
 import globalvar as gl
 
 h = 480  # 画布大小
@@ -52,7 +49,6 @@ class UIFreshThread(object):  # 界面刷新线程
 		self.deep = 0
 
 	def __call__(self):  # 调用实例本身 ——>> MyThread(self.__thread,....
-		# gps_threadLock.acquire()
 		if g_startX != 0:
 			self.startX = g_startX  # from could
 			self.startY = g_startY
@@ -65,8 +61,6 @@ class UIFreshThread(object):  # 界面刷新线程
 		self.deep = thread.g_h  # - 基准高 baseHeight from could
 
 		sleep(1)
-
-	# gps_threadLock.release()
 
 	def get_msg_xy(self):
 		return self.startX, self.startY, self.endX, self.endY, self.Interval, self.nowX, self.nowY
@@ -110,8 +104,6 @@ class MyWindows(QWidget, UI.Ui_Form):
 		endPoint = (int(endX), int(endY))
 		width = Interval * 5
 		currentPoint = (int(nowX), int(nowY))
-		# line_parallel(img, startPoint, endPoint, width, left=-1)
-		# line_parallel(img, startPoint, endPoint, width, right=-1)
 		dist = work_area(img, startPoint, endPoint, width, currentPoint)
 
 		cv2.circle(img, currentPoint, 6, (255, 0, 0), -1)
@@ -200,13 +192,13 @@ if __name__ == "__main__":
 	gps_thread = threading.Thread(target=thread.thread_gps_func, daemon=True)
 	_4g_thread = threading.Thread(target=thread.thread_4g_func, daemon=True)
 
-	# gps_thread = threading.Thread(target=thread.thread_gps_func)
-	# _4g_thread = threading.Thread(target=thread.thread_4g_func)
-
 	gps_thread.start()  # 启动线程
 	mainWindow = MyWindows()
 	_4g_thread.start()
 	sleep(0.5)
-	get_global_value()
-	mainWindow.show()
+	if thread.g_reced_flag:
+		get_global_value()
+		mainWindow.show()
+	else:
+		print("--rec task failed--")
 	sys.exit(app.exec_())

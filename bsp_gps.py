@@ -2,9 +2,6 @@ from tools import *
 import math
 import thread
 
-g_line_worked_flag = False  # 本直线段工作完成标志
-g_deep_worked_flag = False  # 挖完一斗
-
 
 def LatLon2XY(latitude, longitude):
 	a = 6378137.0
@@ -55,23 +52,23 @@ class GPSINSData(object):
 		self.checksum = 0  # 2B deviation 136
 		self.xor_check = 0  # 定义异或校验返回值
 
-	def gps_msg_analysis(self, recbuff):
-		if (recbuff[0] == self.head[0]) and (recbuff[1] == self.head[1]):
-			self.length = recbuff[4:6]
-			self.latitude = recbuff[24:32]
-			self.longitude = recbuff[32:40]
-			self.altitude = recbuff[40:48]
+	def gps_msg_analysis(self, rec_buf):
+		if (rec_buf[0] == self.head[0]) and (rec_buf[1] == self.head[1]):
+			self.length = rec_buf[4:6]
+			self.latitude = rec_buf[24:32]
+			self.longitude = rec_buf[32:40]
+			self.altitude = rec_buf[40:48]
 
-			self.checksum = recbuff[136:138]
+			self.checksum = rec_buf[136:138]
 			self.checksum = self.checksum[0] + self.checksum[1]  # 将checksum 2字节合并
 
-			for i in range(len(recbuff) - 2):  # 计算校验值
-				recbuff[i] = int.from_bytes(recbuff[i], byteorder='little', signed=False)  # bytes转int
-				self.xor_check = self.xor_check ^ recbuff[i]
+			for i in range(len(rec_buf) - 2):  # 计算校验值
+				rec_buf[i] = int.from_bytes(rec_buf[i], byteorder='little', signed=False)  # bytes转int
+				self.xor_check = self.xor_check ^ rec_buf[i]
 			self.xor_check = self.xor_check.to_bytes(length=2, byteorder='little', signed=False)
 
 			if self.xor_check == self.checksum:  # 数据包异或校验通过
-				if recbuff[104] == b'\x04':  # gps信号稳定
+				if rec_buf[104] == b'\x04':  # gps信号稳定
 					print("The signal of gps is stable！\r\n")
 				else:
 					print("The signal of gps is unstable！\r\n")

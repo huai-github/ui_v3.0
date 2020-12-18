@@ -2,7 +2,6 @@ from bsp_serialport import *
 from bsp_4g import *
 from bsp_gps import *
 from datetime import datetime
-from threading import Timer
 import threading
 import globalvar as gl
 
@@ -26,6 +25,19 @@ g_roll = 0
 g_pitch = 0
 g_yaw = 0
 
+g_worked_flag = False
+g_reced_flag = False  # 任务接收完成标志
+
+
+def workedFlag():
+	global g_worked_flag
+	h_last = g_h
+
+	if (g_h > h_last) and True:
+		g_worked_flag = True
+
+	return g_worked_flag
+
 
 class TimeInterval(object):
 	def __init__(self, start_time, interval, callback_proc, args=None, kwargs=None):
@@ -38,13 +50,13 @@ class TimeInterval(object):
 
 	def exec_callback(self, args=None, kwargs=None):
 		self.__callback_pro(*self.__args, **self.__kwargs)
-		self.__timer = Timer(self.__interval, self.exec_callback)
+		self.__timer = threading.Timer(self.__interval, self.exec_callback)
 		self.__timer.start()
 
 	def start(self):
 		interval = self.__interval - (datetime.now().timestamp() - self.__start_time.timestamp())
 		# print( interval )
-		self.__timer = Timer(interval, self.exec_callback)
+		self.__timer = threading.Timer(interval, self.exec_callback)
 		self.__timer.start()
 
 	def cancel(self):
@@ -71,17 +83,14 @@ def thread_gps_func():
 		global g_x, g_y, g_h
 		g_x, g_y = LatLon2XY(gps_msg_switch.latitude, gps_msg_switch.longitude)
 		g_h = gps_msg_switch.altitude
-
 		g_gps_threadLock.release()  # 解锁
 		# print("x：%s\t y：%s\t deep：%s" % (g_x, g_y, g_h))  # 高斯坐标
 
 
 def thread_4g_func():
 	COM_ID_4G = "com21"
-
 	rec = RecTasks()
 	heart = Heart(TYPE_HEART, diggerId)
-
 	com_4g = SerialPortCommunication(COM_ID_4G, 115200, 0.5)
 
 	# 间隔一分钟发送一次心跳
@@ -96,27 +105,26 @@ def thread_4g_func():
 		rec_buf = com_4g.read_line()  # byte -> bytes
 		# print("rec_buf", rec_buf)
 		if rec_buf != b'':
+			global g_reced_flag
+			g_reced_flag = True
 			rec_buf_dict = task_switch_dict(rec_buf)
 			rec.save_msg(rec_buf_dict)
-			print(rec.rec_task_dict["diggerId"])
-			# print(rec.rec_task_dict["section"][0]["sortNo"])
+			# print(rec.rec_task_dict["diggerId"])
+
+			print("workedFlag:", workedFlag())
+
 			g_4g_threadLock.acquire()  # 加锁
-			gl.set_value('g_startX', rec.rec_task_dict["section"][0]["startX"])
-			gl.set_value('g_startY', rec.rec_task_dict["section"][0]["startY"])
-			gl.set_value('g_startH', rec.rec_task_dict["section"][0]["startH"])
-			gl.set_value('g_startW', rec.rec_task_dict["section"][0]["startW"])
-			gl.set_value('g_endX', rec.rec_task_dict["section"][0]["endX"])
-			gl.set_value('g_endY', rec.rec_task_dict["section"][0]["endY"])
-			gl.set_value('g_endH', rec.rec_task_dict["section"][0]["endH"])
-			gl.set_value('g_endW', rec.rec_task_dict["section"][0]["endW"])
+			gl.set_value('g_startX', rec.rec_task_dict["list"][0]["startX"])
+			gl.set_value('g_startY', rec.rec_task_dict["list"][0]["startY"])
+			gl.set_value('g_startH', rec.rec_task_dict["list"][0]["startH"])
+			gl.set_value('g_startW', rec.rec_task_dict["list"][0]["startW"])
+			gl.set_value('g_endX', rec.rec_task_dict["list"][0]["endX"])
+			gl.set_value('g_endY', rec.rec_task_dict["list"][0]["endY"])
+			gl.set_value('g_endH', rec.rec_task_dict["list"][0]["endH"])
+			gl.set_value('g_endW', rec.rec_task_dict["list"][0]["endW"])
 			g_4g_threadLock.release()  # 解锁
 
 		# 发送
 		send = SendMessage(TYPE_HEART, diggerId, round(g_x, 2), round(g_y, 2), round(g_h, 2), 0)
 		send_msg_json = send.switch_to_json()
 		com_4g.send_data(send_msg_json.encode('utf-8'))
-		print(1111)
-
-
-
-

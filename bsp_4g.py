@@ -5,7 +5,7 @@ def task_switch_dict(rec_buf):
 	rec_buf = rec_buf[0:-1]  # 去掉'\n'
 	rec_to_str = str(rec_buf, encoding="utf-8")  # bytes -> str，不是dict！！！
 	rec_buf_dict = eval(rec_to_str)  # str -> dict
-	print("rec_buf_dict:", rec_buf_dict)
+	# print("rec_buf_dict:", rec_buf_dict)
 	return rec_buf_dict
 
 
@@ -19,7 +19,6 @@ class Heart(object):
 	def send_heart_msg(self, com):
 		send_buf_json = json.dumps(self.heart_dict)
 		com.send_data(send_buf_json.encode('utf-8'))
-		print(0000)
 
 	def rec_ack(self):
 		pass
@@ -44,11 +43,11 @@ class RecTasks(object):
 	def __init__(self):
 		self.rec_task_dict = {
 			"diggerId": 0,
-			"section": [],
+			"list": [],
 		}
 
 	def save_msg(self, rec_buf_dict):
 		self.rec_task_dict["diggerId"] = rec_buf_dict["diggerId"]
-		self.rec_task_dict["section"] = rec_buf_dict["section"]
+		self.rec_task_dict["list"] = rec_buf_dict["list"]
 
 
