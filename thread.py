@@ -27,17 +27,7 @@ g_yaw = 0
 
 g_worked_flag = False
 g_reced_flag = False  # 任务接收完成标志
-
-
-def workedFlag():
-	global g_worked_flag
-	h_last = g_h
-
-	if (g_h > h_last) and True:
-		g_worked_flag = True
-
-	return g_worked_flag
-
+g_work_area = 0
 
 class TimeInterval(object):
 	def __init__(self, start_time, interval, callback_proc, args=None, kwargs=None):
@@ -67,6 +57,7 @@ class TimeInterval(object):
 def thread_gps_func():
 	GPS_COM = "com5"
 	GPS_REC_BUF_LEN = 138
+	h_last = 0		# 上一次的海拔
 	while True:
 		gps_data = GPSINSData()
 		gps_msg_switch = LatLonAlt()
@@ -76,7 +67,6 @@ def thread_gps_func():
 		gps_com.close_com()
 		g_gps_threadLock.acquire()  # 加锁
 		gps_data.gps_msg_analysis(gps_rec_buffer)
-		# 8 -> 1，得到经纬度
 		gps_msg_switch.latitude, gps_msg_switch.longitude, gps_msg_switch.altitude = gps_data.gps_typeswitch()
 		# print("纬度：%s\t经度：%s\t海拔：%s\t" % (gps_msg_switch.latitude, gps_msg_switch.longitude, gps_msg_switch.altitude))
 		# 经纬度转高斯坐标
@@ -84,6 +74,12 @@ def thread_gps_func():
 		g_x, g_y = LatLon2XY(gps_msg_switch.latitude, gps_msg_switch.longitude)
 		g_h = gps_msg_switch.altitude
 		g_gps_threadLock.release()  # 解锁
+		"""判断挖完一次标志"""
+		temp_h = g_h - h_last
+		if temp_h:
+			global g_worked_flag
+			g_worked_flag = True
+			h_last = g_h
 		# print("x：%s\t y：%s\t deep：%s" % (g_x, g_y, g_h))  # 高斯坐标
 
 
@@ -105,24 +101,31 @@ def thread_4g_func():
 		rec_buf = com_4g.read_line()  # byte -> bytes
 		# print("rec_buf", rec_buf)
 		if rec_buf != b'':
-			global g_reced_flag
-			g_reced_flag = True
 			rec_buf_dict = task_switch_dict(rec_buf)
 			rec.save_msg(rec_buf_dict)
 			# print(rec.rec_task_dict["diggerId"])
-
-			print("workedFlag:", workedFlag())
-
 			g_4g_threadLock.acquire()  # 加锁
-			gl.set_value('g_startX', rec.rec_task_dict["list"][0]["startX"])
-			gl.set_value('g_startY', rec.rec_task_dict["list"][0]["startY"])
-			gl.set_value('g_startH', rec.rec_task_dict["list"][0]["startH"])
-			gl.set_value('g_startW', rec.rec_task_dict["list"][0]["startW"])
-			gl.set_value('g_endX', rec.rec_task_dict["list"][0]["endX"])
-			gl.set_value('g_endY', rec.rec_task_dict["list"][0]["endY"])
-			gl.set_value('g_endH', rec.rec_task_dict["list"][0]["endH"])
-			gl.set_value('g_endW', rec.rec_task_dict["list"][0]["endW"])
+			# gl.set_value('g_startX', rec.rec_task_dict["list"][0]["startX"])
+			# gl.set_value('g_startY', rec.rec_task_dict["list"][0]["startY"])
+			# gl.set_value('g_startH', rec.rec_task_dict["list"][0]["startH"])
+			# gl.set_value('g_startW', rec.rec_task_dict["list"][0]["startW"])
+			# gl.set_value('g_endX', rec.rec_task_dict["list"][0]["endX"])
+			# gl.set_value('g_endY', rec.rec_task_dict["list"][0]["endY"])
+			# gl.set_value('g_endH', rec.rec_task_dict["list"][0]["endH"])
+			# gl.set_value('g_endW', rec.rec_task_dict["list"][0]["endW"])
+			global g_work_area
+			gl.set_value('g_startX', rec.rec_task_dict["list"][g_work_area]["startX"])
+			gl.set_value('g_startY', rec.rec_task_dict["list"][g_work_area]["startY"])
+			gl.set_value('g_startH', rec.rec_task_dict["list"][g_work_area]["startH"])
+			gl.set_value('g_startW', rec.rec_task_dict["list"][g_work_area]["startW"])
+			gl.set_value('g_endX', rec.rec_task_dict["list"][g_work_area]["endX"])
+			gl.set_value('g_endY', rec.rec_task_dict["list"][g_work_area]["endY"])
+			gl.set_value('g_endH', rec.rec_task_dict["list"][g_work_area]["endH"])
+			gl.set_value('g_endW', rec.rec_task_dict["list"][g_work_area]["endW"])
 			g_4g_threadLock.release()  # 解锁
+			"""任务接收完成标志"""
+			global g_reced_flag
+			g_reced_flag = True
 
 		# 发送
 		send = SendMessage(TYPE_HEART, diggerId, round(g_x, 2), round(g_y, 2), round(g_h, 2), 0)

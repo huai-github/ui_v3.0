@@ -71,14 +71,14 @@ class GPSINSData(object):
 				if rec_buf[104] == b'\x04':  # gps信号稳定
 					print("The signal of gps is stable！\r\n")
 				else:
-					print("The signal of gps is unstable！\r\n")
+					# print("The signal of gps is unstable！\r\n")
 					pass
 			else:
 				print("checksum error!!!\r\n")
 				pass
 				return
 		else:
-			print("data head error!!!\r\n")
+			print("gps data head error!!!\r\n")
 
 	# return
 

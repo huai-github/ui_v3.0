@@ -23,7 +23,6 @@ g_endY = 0
 g_endH = 0
 g_endW = 0
 
-
 def get_global_value():
 	global g_startX, g_startY, g_startH, g_startW, g_endX, g_endY, g_endH, g_endW
 	g_startX = gl.get_value('g_startX')
@@ -100,24 +99,33 @@ class MyWindows(QWidget, UI.Ui_Form):
 
 	def leftWindow(self, img, startX, startY, endX, endY, Interval, nowX, nowY):
 		img[...] = 255
-		startPoint = (int(startX), int(startY))
-		endPoint = (int(endX), int(endY))
+		startPoint = (startX, startY)
+		endPoint = (endX, endY)
 		width = Interval * 5
-		currentPoint = (int(nowX), int(nowY))
-		dist = work_area(img, startPoint, endPoint, width, currentPoint)
+		currentPoint = (nowX, nowY)
+		corner = work_area(img, startPoint, endPoint, width, currentPoint)	 # 返回矩形的角点坐标，从右上角开始逆时针选择
 
-		cv2.circle(img, currentPoint, 6, (255, 0, 0), -1)
+		border1 = corner[0][0][0]  	# 右上角的x坐标
+		border2 = corner[1][0][0]
+		area1 = corner[0][0][1]	 	# 右上角的y坐标
+		area2 = corner[2][0][1]
+		ptx = corner[4][0][0]
+		pty = corner[4][0][1]
+
+		# cv2.circle(img, currentPoint, 6, (255, 0, 0), -1)
 		BorderReminderLedXY = (530, 460)  # 边界指示灯位置 界内绿色
 		BorderReminderTextXY = (230, 470)
 		cv2.circle(img, BorderReminderLedXY, 12, (0, 255, 0), -1)
 		self.BorderReminder.setText("   ")
+
 		# 如果超出边界，BorderReminder红色,并提示汉字信息
-		if dist == 0:
+		if (ptx < border2) or (ptx > border1):
 			cv2.circle(img, BorderReminderLedXY, 12, (0, 0, 255), -1)  # 边界报警指示灯
 			self.BorderReminder.setText("！！即将超出边界！！")
-		elif dist == -1:
-			cv2.circle(img, BorderReminderLedXY, 12, (0, 0, 255), -1)  # 边界报警指示灯
-			self.BorderReminder.setText("！！超出边界！！")
+
+		# 如果超出工作区域
+		if (pty < area1) or (pty > area2):
+			thread.g_work_area += 1
 
 		cv2.putText(img, "BorderReminder", BorderReminderTextXY, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
 		QtImgLine = QImage(cv2.cvtColor(img, cv2.COLOR_BGR2RGB).data,
@@ -195,7 +203,7 @@ if __name__ == "__main__":
 	gps_thread.start()  # 启动线程
 	mainWindow = MyWindows()
 	_4g_thread.start()
-	sleep(0.5)
+	sleep(0.8)
 	if thread.g_reced_flag:
 		get_global_value()
 		mainWindow.show()
