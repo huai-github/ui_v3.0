@@ -11,8 +11,11 @@ from my_thread import MyThread
 from thread import *
 import globalvar as gl
 
-h = 480  # 画布大小
-w = 550
+# h = 480  	# 画布大小
+# w = 550
+
+h = 560  	# 画布大小
+w = 620
 
 g_startX = 0
 g_startY = 0
@@ -22,6 +25,7 @@ g_endX = 0
 g_endY = 0
 g_endH = 0
 g_endW = 0
+
 
 def get_global_value():
 	global g_startX, g_startY, g_startH, g_startW, g_endX, g_endY, g_endH, g_endW
@@ -101,20 +105,25 @@ class MyWindows(QWidget, UI.Ui_Form):
 		img[...] = 255
 		startPoint = (startX, startY)
 		endPoint = (endX, endY)
-		width = Interval * 5
+		width = Interval * 3
 		currentPoint = (nowX, nowY)
 		corner = work_area(img, startPoint, endPoint, width, currentPoint)	 # 返回矩形的角点坐标，从右上角开始逆时针选择
-
+		print("corner:", corner)
 		border1 = corner[0][0][0]  	# 右上角的x坐标
 		border2 = corner[1][0][0]
 		area1 = corner[0][0][1]	 	# 右上角的y坐标
 		area2 = corner[2][0][1]
 		ptx = corner[4][0][0]
 		pty = corner[4][0][1]
-
+		# print("border1:", border1)
+		# print("border2:", border2)
+		# print("area1:", area1)
+		# print("area2:", area2)
+		# print("ptx:", ptx)
+		# print("pty:", pty)
 		# cv2.circle(img, currentPoint, 6, (255, 0, 0), -1)
-		BorderReminderLedXY = (530, 460)  # 边界指示灯位置 界内绿色
-		BorderReminderTextXY = (230, 470)
+		BorderReminderLedXY = (w-25, h-18)  # 边界指示灯位置 界内绿色
+		BorderReminderTextXY = (w-320, h-10)
 		cv2.circle(img, BorderReminderLedXY, 12, (0, 255, 0), -1)
 		self.BorderReminder.setText("   ")
 

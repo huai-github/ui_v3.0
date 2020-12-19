@@ -9,47 +9,99 @@ def rad2angle(rad):
 	return rad * 180 / np.pi
 
 
+def get_line_angle(s, t):
+	"""
+	get_line_angle - 计算直线与 x 轴的夹角, 顺时针为正 0 - 360°
+	@s:     起点
+	@t:     终点
+	@return:
+		type - s 为原点时, t的相对象限
+		angle - 夹角, 逆时针为正
+	"""
+	t = np.float32(t)
+	s = np.float32(s)
+	diff = t - s
+	if diff.item(0) == 0:
+		# 垂直
+		diff.itemset(0, 1e-16 if t.item(0) > 0 else -1 * 1e-16)
+
+	k = diff.item(1) / diff.item(0)
+	angle = rad2angle(np.arctan(k))
+
+	if angle > 0:  # 1, 3 象限 +90
+		type = 1 if t.item(1) >= s.item(1) else 3
+
+	elif angle == 0:  # x 负半轴给 3 象限, x 正半轴给 1 象限
+		type = 3 if t.item(0) < s.item(0) else 1
+
+	elif angle < 0:  # 2, 3 象限 象限区间左闭右开, 当 t 和 s 的 y 坐标相等时, 将其归为 3 象限
+		type = 2 if t.item(1) > s.item(1) else 4
+
+	# 4 象限: t 在 s 的右下方 [270, 360)
+	# 3 象限: t 在 s 的左下方 [180, 270)
+	# 2 象限: t 在 s 的左上方 [90, 180)
+	# 1 象限: t 在 s 的右上方 [0, 90)
+	if type == 2:
+		angle += 180
+	elif type == 3:
+		angle += 180
+	elif type == 4:
+		angle += 360
+	return type, angle
+
+
 def work_area(img, a, b, l, point):
 	# k = (b[1] - a[1]) / (b[0] - a[0])
+	# print("k", k)
 	# theta = np.arctan(k)
-	# x_offset = interval * sin(theta) * -1
-	# y_offset = interval * cos(theta)
 	#
-	# x1_offset = interval * sin(theta)
-	# y1_offset = interval * cos(theta) * -1
-	#
+	# x_offset = l * sin(theta) * -1
+	# y_offset = l * cos(theta)
 	# M = np.float32([[1, 0, x_offset],
 	# 				[0, 1, y_offset]])
+	# new_pt = cv.transform(np.float32([[a], [b]]), M).astype(np.int)
 	#
+	# x1_offset = l * sin(theta)
+	# y1_offset = l * cos(theta) * -1
 	# M1 = np.float32([[1, 0, x1_offset],
 	# 				 [0, 1, y1_offset]])
-	#
-	# new_pt = cv.transform(np.float32([[a], [b]]), M).astype(np.int)
 	# new_pt1 = cv.transform(np.float32([[a], [b]]), M1).astype(np.int)
 	#
-	# cv.line(img, a, b, (0, 255, 0), 1)
-	# cv.line(img, tuple(new_pt[0][0]), tuple(new_pt[1][0]), (0, 0, 255), 2)
-	# cv.line(img, tuple(new_pt1[0][0]), tuple(new_pt1[1][0]), (0, 0, 255), 2)
-	# # 补全矩形框
-	# cv.line(img, tuple(new_pt1[0][0]), tuple(new_pt[0][0]), (255, 255, 255), 1)
-	# cv.line(img, tuple(new_pt1[1][0]), tuple(new_pt[1][0]), (255, 255, 255), 1)
+	# # cv.line(img, a, b, (255, 0, 255), 2)
+	# # cv.line(img, tuple(new_pt[0][0]), tuple(new_pt[1][0]), (0, 0, 255), 2)
 	#
-	# gray = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
-	# ret, binary = cv.threshold(gray, 0, 255, cv.THRESH_BINARY)
-	# image, contours, hierarchy = cv.findContours(binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-	# cv.drawContours(image, contours, -1, (255, 0, 255), 1)
-	# # point = (200, 200)
-	# dist = cv.pointPolygonTest(contours[0], point, False)
+	# box = np.array([tuple(new_pt1[0][0]), tuple(new_pt[0][0]), tuple(new_pt[1][0]), tuple(new_pt1[1][0])])
+	# cv.drawContours(img, [box[:, np.newaxis, :]], 0, (255, 0, 255), 2)	 # 旋转前工作区域
 	#
-	# return dist
+	# circle_pt = np.array(point)
+	# # print("circle_pt", circle_pt)
+	# cv.circle(img, tuple(circle_pt.astype(np.int)), 2, (255, 0, 255), 2)	 # 旋转前挖斗实时位置
+	#
+	# # if theta > np.pi / 2:
+	# if k > 0:
+	# 	angle = rad2angle(theta)
+	# else:
+	# 	angle = -(rad2angle(theta))
+	#
+	# # 正值：逆时针
+	# M = cv.getRotationMatrix2D(tuple(np.mean(box, axis=0)), angle, 1)
+	#
+	# box = np.vstack([box, circle_pt])
+	# box = cv.transform(box[:, np.newaxis, :], M)
+	# circle_pt_rotate = tuple(box[-1][0].astype(np.int))
+	# cv.drawContours(img, [box[:-1].astype(np.int)], -1, (0, 0, 255), 2)
+	# cv.circle(img, circle_pt_rotate, 6, (255, 0, 255), -1)
+	# # print("box",box)
 	k = (b[1] - a[1]) / (b[0] - a[0])
 
 	theta = np.arctan(k)
 
 	x_offset = l * sin(theta) * -1
 	y_offset = l * cos(theta)
+
 	M = np.float32([[1, 0, x_offset],
 					[0, 1, y_offset]])
+
 	new_pt = cv.transform(np.float32([[a], [b]]), M).astype(np.int)
 
 	x1_offset = l * sin(theta)
@@ -58,27 +110,32 @@ def work_area(img, a, b, l, point):
 					 [0, 1, y1_offset]])
 	new_pt1 = cv.transform(np.float32([[a], [b]]), M1).astype(np.int)
 
+	# left_pt = a
+	# right_pt = tuple(new_pt[1][0])
+
+	# box = np.array([a, tuple(new_pt[0][0]), tuple(new_pt[1][0]), b])
 	box = np.array([tuple(new_pt1[0][0]), tuple(new_pt[0][0]), tuple(new_pt[1][0]), tuple(new_pt1[1][0])])
-	# cv.drawContours(img, [box[:, np.newaxis, :]], 0, (0, 0, 255), 2)	 # 旋转前工作区域
+	cv.drawContours(img, [box[:, np.newaxis, :]], 0, (0, 0, 255), 2)
 
-	circle_pt = np.array(point)
-	# print("circle_pt", circle_pt)
-	# cv.circle(img, tuple(circle_pt.astype(np.int)), 2, (0, 0, 255), 2)	 # 旋转前挖斗实时位置
+	circle_pt = np.mean(box, axis=0) - np.array([10, 10])
+	# circle_pt = np.array(point)
+	cv.circle(img, tuple(circle_pt.astype(np.int)), 2, (0, 0, 255), 2)
 
-	if theta > np.pi / 2:
-		angle = rad2angle(theta)
+	# 旋转矩形框至垂直
+	_, angle = get_line_angle(a, b)
+	print("before: ", angle)
+	if angle <= 180:
+		angle -= 90
 	else:
-		angle = -rad2angle(theta)
-
+		angle = 270 - angle
+	print("after: ", angle)
 	M = cv.getRotationMatrix2D(tuple(np.mean(box, axis=0)), angle, 1)
 
 	box = np.vstack([box, circle_pt])
 	box = cv.transform(box[:, np.newaxis, :], M)
-	circle_pt_rotate = tuple(box[-1][0].astype(np.int))
-	cv.drawContours(img, [box[:-1].astype(np.int)], -1, (0, 0, 255), 2)
-	cv.circle(img, circle_pt_rotate, 3, (255, 0, 255), 5)
-	img = cv.resize(img, None, fx=0.8, fy=0.8)
-	# print("box",box)
+	# print(box)
+	cv.drawContours(img, [box[:-1].astype(np.int)], -1, (255, 0, 255), 2)
+	cv.circle(img, tuple(box[-1][0].astype(np.int)), 2, (255, 0, 255), 2)
 	return box
 
 

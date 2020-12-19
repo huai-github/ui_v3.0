@@ -29,6 +29,7 @@ g_worked_flag = False
 g_reced_flag = False  # 任务接收完成标志
 g_work_area = 0
 
+
 class TimeInterval(object):
 	def __init__(self, start_time, interval, callback_proc, args=None, kwargs=None):
 		self.__timer = None
